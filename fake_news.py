@@ -1,9 +1,10 @@
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import PassiveAggressiveClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix
-
 
 seed = 42
 real_news_path = 'D:\\matti\\PycharmProjects\\fake_news\\True.csv'
@@ -30,6 +31,24 @@ good = pd.concat([good, label_real], axis=1)
 df = pd.concat([fake, good], axis=0).sample(frac=1, random_state=seed)
 labels = df.label
 
+# EDA ----------------------------------------------------------------------
+# subject vs target
+df['subject'].unique()
+plt.style.use('fivethirtyeight')
+plt.figure(figsize=(15, 5))
+sns.countplot(x='subject', data=df, hue='label')
+plt.show()
+
+# number of world in Real News
+no_words = df[df['label'] == 'REAL'].text.str.split().map(lambda x: len(x))
+no_words.plot(kind='hist', edgecolor='black', color='lightgreen', title='n° of words in Real')
+plt.show()
+# number of world in Fake News
+no_words = df[df['label'] == 'FAKE'].text.str.split().map(lambda x: len(x))
+no_words.plot(kind='hist', edgecolor='black', color='lightblue', title='n° of words in Fake')
+plt.show()
+# --------------------------------------------------------------------------
+
 # Split train-test
 x_train, x_test, y_train, y_test = train_test_split(df['text'], labels, test_size=0.2, random_state=seed)
 
@@ -54,4 +73,3 @@ print(f'Accuracy: {round(score*100,2)}%')
 
 # Build confusion matrix
 confusion_matrix(y_test, y_pred, labels=['FAKE', 'REAL'])
-
