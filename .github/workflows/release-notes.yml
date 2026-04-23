@@ -1,0 +1,113 @@
+name: Auto Release Notes
+
+on:
+  schedule:
+    - cron: '15 11 * * *' # ogni giorno alle 8:00 UTC
+  workflow_dispatch:        # trigger manuale per test
+
+permissions:
+  contents: write
+
+jobs:
+  generate-release-notes:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # serve lo storico completo per il diff
+
+      - name: Check for diff
+        id: diff
+        run: |
+          DIFF=$(git log release..main --oneline --no-merges --format="%h %s" 2>/dev/null || echo "")
+          if [ -z "$DIFF" ]; then
+            echo "has_diff=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_diff=true" >> $GITHUB_OUTPUT
+            echo "$DIFF" > /tmp/diff.txt
+          fi
+
+      - name: Install Ollama
+        if: steps.diff.outputs.has_diff == 'true'
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          sleep 5  # attesa avvio server
+
+      - name: Pull model
+        if: steps.diff.outputs.has_diff == 'true'
+        run: ollama pull mistral
+
+      - name: Generate release notes
+        if: steps.diff.outputs.has_diff == 'true'
+        run: |
+          cat > /tmp/generate.py << 'SCRIPT'
+          import json
+          import urllib.request
+          import datetime
+          import os
+
+          diff = open("/tmp/diff.txt").read()
+          today = datetime.date.today().isoformat()
+
+          # Carica template se esiste
+          template_path = "docs/release-notes-template.md"
+          template = ""
+          if os.path.exists(template_path):
+              template = open(template_path).read()
+          else:
+              template = "## [Data] - Release Notes\n### Features\n### Fix\n### Improvements\n### ⚠️ Breaking Changes"
+
+          prompt = f"""Sei un agente che genera release notes per il progetto Data Platform.
+
+          SCHEMA DA SEGUIRE ESATTAMENTE:
+          {template}
+
+          REGOLE:
+          - Data di oggi: {today}
+          - Classifica ogni modifica come: Feature, Fix, Improvement o Breaking Change
+          - Una modifica è BREAKING se: cambia API pubbliche, rimuove campi/endpoint,
+            modifica contratti dati, o il commit contiene "BREAKING CHANGE" o "!"
+          - Rispondi SOLO con il markdown, nessun commento aggiuntivo
+
+          COMMIT DA ANALIZZARE:
+          {diff}
+
+          OUTPUT (markdown):"""
+
+          payload = json.dumps({
+              "model": "mistral",
+              "prompt": prompt,
+              "stream": False,
+              "options": {"temperature": 0.2}
+          }).encode()
+
+          req = urllib.request.Request(
+              "http://localhost:11434/api/generate",
+              data=payload,
+              headers={"Content-Type": "application/json"}
+          )
+
+          with urllib.request.urlopen(req, timeout=300) as resp:
+              result = json.loads(resp.read())["response"]
+
+          output_path = "docs/release-notes.md"
+          os.makedirs("docs", exist_ok=True)
+          with open(output_path, "w") as f:
+              f.write(result)
+
+          print("Release notes generate con successo")
+          SCRIPT
+          python3 /tmp/generate.py
+
+      - name: Commit & Push
+        if: steps.diff.outputs.has_diff == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/release-notes.md
+          git diff --cached --quiet && echo "Nessuna modifica" && exit 0
+          git commit -m "docs: auto-generate release notes $(date +%Y-%m-%d)"
+          git push
