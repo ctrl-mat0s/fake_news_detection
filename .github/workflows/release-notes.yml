@@ -21,7 +21,7 @@ jobs:
       - name: Check for diff
         id: diff
         run: |
-          DIFF=$(git log release..main --oneline --no-merges --format="%h %s" 2>/dev/null || echo "")
+          DIFF=$(git log main..release --oneline --no-merges --format="%h %s" 2>/dev/null || echo "")
           if [ -z "$DIFF" ]; then
             echo "has_diff=false" >> $GITHUB_OUTPUT
           else
