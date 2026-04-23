@@ -2,8 +2,8 @@ name: Auto Release Notes
 
 on:
   schedule:
-    - cron: '15 11 * * *' # ogni giorno alle 8:00 UTC
-  workflow_dispatch:        # trigger manuale per test
+    - cron: '0 8 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -16,17 +16,23 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # serve lo storico completo per il diff
+          fetch-depth: 0
+
+      - name: Fetch release branch
+        run: git fetch origin release
 
       - name: Check for diff
         id: diff
         run: |
-          DIFF=$(git log main..release --oneline --no-merges --format="%h %s" 2>/dev/null || echo "")
+          DIFF=$(git log main..origin/release --oneline --no-merges --format="%h %s" 2>/dev/null || echo "")
           if [ -z "$DIFF" ]; then
             echo "has_diff=false" >> $GITHUB_OUTPUT
+            echo "Nessuna diff trovata"
           else
             echo "has_diff=true" >> $GITHUB_OUTPUT
             echo "$DIFF" > /tmp/diff.txt
+            echo "Diff trovate:"
+            echo "$DIFF"
           fi
 
       - name: Install Ollama
@@ -34,7 +40,7 @@ jobs:
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
           ollama serve &
-          sleep 5  # attesa avvio server
+          sleep 5
 
       - name: Pull model
         if: steps.diff.outputs.has_diff == 'true'
@@ -52,7 +58,6 @@ jobs:
           diff = open("/tmp/diff.txt").read()
           today = datetime.date.today().isoformat()
 
-          # Carica template se esiste
           template_path = "docs/release-notes-template.md"
           template = ""
           if os.path.exists(template_path):
