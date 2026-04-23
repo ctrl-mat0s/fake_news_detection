@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   generate-release-notes:
@@ -107,12 +108,27 @@ jobs:
           SCRIPT
           python3 /tmp/generate.py
 
-      - name: Commit & Push
+      - name: Create, Approve & Merge PR
         if: steps.diff.outputs.has_diff == 'true'
         run: |
+          BRANCH="docs/release-notes-$(date +%Y-%m-%d)"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git add docs/release-notes.md
           git diff --cached --quiet && echo "Nessuna modifica" && exit 0
           git commit -m "docs: auto-generate release notes $(date +%Y-%m-%d)"
-          git push
+          git push origin "$BRANCH"
+
+          # Crea la PR
+          GH_TOKEN=${{ secrets.GITHUB_TOKEN }} gh pr create \
+            --title "📝 Release Notes $(date +%Y-%m-%d)" \
+            --body "Release notes auto-generate dal diff main..release" \
+            --base release \
+            --head "$BRANCH"
+
+          # Approva con identità diversa
+          GH_TOKEN=${{ secrets.PAT_APPROVE }} gh pr review "$BRANCH" --approve
+
+          # Merge e cleanup
+          GH_TOKEN=${{ secrets.GITHUB_TOKEN }} gh pr merge "$BRANCH" --squash --delete-branch
