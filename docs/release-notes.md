@@ -3,7 +3,7 @@ SCHEDULED
 
 ### Release Due Date
 2026-04-23
-tag: 7c74536
+tag: 4a443c0
 
 ### Release Content
 
@@ -11,8 +11,8 @@ tag: 7c74536
 NONE
 
 #### Non-Breaking Changes
-##### area1
-###### prova2.sql
+##### area3
+###### prova54.sql
 
 ### Notes for Operation/Infrastrutture
 `NONE`
@@ -21,7 +21,7 @@ NONE
 `NONE`
 
 ### Rollback
-Revert to 7c74536
+Revert to 3ef4db7
 
 ### Release Technical Instructions
 `NONE`
