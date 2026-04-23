@@ -31,14 +31,18 @@ jobs:
         id: diff
         run: |
           DIFF=$(git log main..origin/release --oneline --no-merges --format="%h %s" 2>/dev/null || echo "")
+          FILES=$(git diff --name-only main..origin/release 2>/dev/null || echo "")
           if [ -z "$DIFF" ]; then
             echo "has_diff=false" >> $GITHUB_OUTPUT
             echo "Nessuna diff trovata"
           else
             echo "has_diff=true" >> $GITHUB_OUTPUT
             echo "$DIFF" > /tmp/diff.txt
+            echo "$FILES" > /tmp/files.txt
             echo "Diff trovate:"
             echo "$DIFF"
+            echo "File modificati:"
+            echo "$FILES"
           fi
 
       - name: Install Ollama
@@ -61,7 +65,6 @@ jobs:
           import datetime
           import os
 
-          diff = open("/tmp/diff.txt").read()
           today = datetime.date.today().isoformat()
 
           template_path = "docs/release-notes-template.md"
@@ -71,21 +74,31 @@ jobs:
           else:
               template = "## [Data] - Release Notes\n### Features\n### Fix\n### Improvements\n### ⚠️ Breaking Changes"
 
+          diff = open("/tmp/diff.txt").read()
+          files = open("/tmp/files.txt").read()
+          
           prompt = f"""Sei un agente che genera release notes per il progetto Data Platform.
-
+          
           SCHEMA DA SEGUIRE ESATTAMENTE:
           {template}
-
+          
           REGOLE:
           - Data di oggi: {today}
-          - Classifica ogni modifica come: Feature, Fix, Improvement o Breaking Change
+          - Analizza i FILE MODIFICATI per capire quali cartelle sotto code/layers/ sono coinvolte
+          - Ogni cartella trovata (es. promotion, mga, ecc.) diventa una SEZIONE nel markdown
+            con le sue Breaking Changes e Non-Breaking Changes
           - Una modifica è BREAKING se: cambia API pubbliche, rimuove campi/endpoint,
             modifica contratti dati, o il commit contiene "BREAKING CHANGE" o "!"
+          - Se una sezione non ha breaking changes, scrivi `NONE`
+          - Se una sezione non ha non-breaking changes, scrivi `NONE`
           - Rispondi SOLO con il markdown, nessun commento aggiuntivo
-
-          COMMIT DA ANALIZZARE:
+          
+          COMMIT:
           {diff}
-
+          
+          FILE MODIFICATI:
+          {files}
+          
           OUTPUT (markdown):"""
 
           payload = json.dumps({
