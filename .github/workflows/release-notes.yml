@@ -108,8 +108,10 @@ jobs:
           SCRIPT
           python3 /tmp/generate.py
 
-      - name: Create, Approve & Merge PR
+      - name: Create PR
         if: steps.diff.outputs.has_diff == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="docs/release-notes-$(date +%Y-%m-%d)"
           git config user.name "github-actions[bot]"
@@ -127,8 +129,18 @@ jobs:
             --base release \
             --head "$BRANCH"
 
-          # Approva con identità diversa
-          GH_TOKEN=${{ secrets.PAT_APPROVE }} gh pr review "$BRANCH" --approve
+      - name: Approve PR
+        if: steps.diff.outputs.has_diff == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_APPROVE }}
+        run: |
+          BRANCH="docs/release-notes-$(date +%Y-%m-%d)"
+          gh pr review "$BRANCH" --approve
 
-          # Merge e cleanup
-          GH_TOKEN=${{ secrets.GITHUB_TOKEN }} gh pr merge "$BRANCH" --squash --delete-branch
+      - name: Merge PR
+        if: steps.diff.outputs.has_diff == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="docs/release-notes-$(date +%Y-%m-%d)"
+          gh pr merge "$BRANCH" --squash --delete-branch
