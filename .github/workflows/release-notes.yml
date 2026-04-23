@@ -156,4 +156,5 @@ jobs:
           # Chiudi la PR se esiste
           gh pr close "$BRANCH" 2>/dev/null || true
           # Elimina il branch remoto
-          git push origin --delete "$BRANCH" 2>/dev/null || true          echo "Cleanup completato"
+          git push origin --delete "$BRANCH" 2>/dev/null || true
+          echo "Cleanup completato"
