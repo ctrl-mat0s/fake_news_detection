@@ -1,18 +1,18 @@
- ### Release status
+ ```
+### Release status
 SCHEDULED
 
 ### Release Due Date
-2026-04-23
-tag: 7c74536
+2026-05-05
+tag: _13_
 
 ### Release Content
 
-#### Breaking Changes
+#### Breaking Changes (area3)
 NONE
 
-#### Non-Breaking Changes
-##### area1
-###### prova2.sql
+#### Non-Breaking Changes (area3)
+- prova54.sql
 
 ### Notes for Operation/Infrastrutture
 `NONE`
@@ -21,10 +21,11 @@ NONE
 `NONE`
 
 ### Rollback
-Revert to 7c74536
+Revert to _12_
 
 ### Release Technical Instructions
 `NONE`
 
 #### Manual Operations
 `NONE`
+```
