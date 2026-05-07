@@ -2,17 +2,22 @@
 SCHEDULED
 
 ### Release Due Date
-2026-04-23
-tag: 7c74536
+2026-05-07
+tag: _13_
 
 ### Release Content
 
-#### Breaking Changes
+#### promotion
+##### Breaking Changes
+NONE
+##### Non-Breaking Changes
 NONE
 
-#### Non-Breaking Changes
-##### area1
-###### prova2.sql
+#### mga
+##### Breaking Changes
+NONE
+##### Non-Breaking Changes
+NONE
 
 ### Notes for Operation/Infrastrutture
 `NONE`
@@ -21,7 +26,7 @@ NONE
 `NONE`
 
 ### Rollback
-Revert to 7c74536
+Revert to _12_
 
 ### Release Technical Instructions
 `NONE`
