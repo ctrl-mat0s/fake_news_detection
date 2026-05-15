@@ -1,0 +1,142 @@
+# =============================================================================
+# Create Release Draft PR
+# =============================================================================
+# Questo workflow crea automaticamente una draft PR da release -> main
+# ad ogni push sul branch release.
+# =============================================================================
+
+name: Create Release Draft PR
+
+on:
+  push:
+    branches: [release]
+
+# Evita esecuzioni parallele su push ravvicinati: se un nuovo push arriva
+# mentre il workflow è in corso, l'esecuzione precedente viene cancellata.
+concurrency:
+  group: create-release-draft-pr
+  cancel-in-progress: true
+
+jobs:
+  create-draft-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Step 1: Verifica idempotenza
+      # Controlla se esiste già una PR aperta da release -> main.
+      # Se sì, non serve fare nulla: GitHub aggiorna il diff automaticamente
+      # quando nuovi commit arrivano su release.
+      # -----------------------------------------------------------------------
+      - name: Check if draft PR already exists
+        id: check_existing
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EXISTING=$(gh pr list \
+            --repo "${{ github.repository }}" \
+            --base main \
+            --head release \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [[ -n "$EXISTING" ]]; then
+            echo "PR #$EXISTING già aperta — skip"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # -----------------------------------------------------------------------
+      # Step 2: Trova l'ultima PR merged da release -> main
+      # Serve per estrarre il titolo (es. "release-v1.2.03") e calcolare
+      # la prossima versione da assegnare alla nuova draft PR.
+      # -----------------------------------------------------------------------
+      - name: Find last merged release PR
+        id: last_release
+        if: steps.check_existing.outputs.skip == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_TITLE=$(gh pr list \
+            --repo "${{ github.repository }}" \
+            --base main \
+            --head release \
+            --state merged \
+            --limit 1 \
+            --json title \
+            --jq '.[0].title // empty')
+
+          if [[ -z "$PR_TITLE" ]]; then
+            echo "::warning::Nessuna PR merged trovata — impossibile calcolare la versione"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "title=$PR_TITLE" >> "$GITHUB_OUTPUT"
+
+          # Valida il formato atteso: release-v{MAJOR}.{MINOR}.{PATCH}
+          if [[ "$PR_TITLE" =~ ^release-v[0-9]+\.[0-9]+\.[0-9]+(\.[a-z])?$ ]]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Il titolo '$PR_TITLE' non corrisponde al pattern atteso"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # -----------------------------------------------------------------------
+      # Step 3: Calcola la prossima versione
+      # Incrementa PATCH; se PATCH raggiunge 99, incrementa MINOR (e resetta
+      # PATCH a 0); se MINOR raggiunge 9, incrementa MAJOR.
+      # Il PATCH è formattato con zero-padding a 2 cifre (es. 01, 02, ..., 99).
+      # -----------------------------------------------------------------------
+      - name: Compute next version
+        id: next_version
+        if: steps.check_existing.outputs.skip == 'false' && steps.last_release.outputs.found == 'true'
+        run: |
+          TITLE="${{ steps.last_release.outputs.title }}"
+
+          if [[ "$TITLE" =~ ^release-v([0-9]+)\.([0-9]+)\.([0-9]+)(\.[a-z])?$ ]]; then
+            MAJOR=$((10#${BASH_REMATCH[1]}))
+            MINOR=$((10#${BASH_REMATCH[2]}))
+            PATCH=$((10#${BASH_REMATCH[3]}))
+
+            # Logica di incremento con overflow
+            if (( PATCH < 99 )); then
+              PATCH=$((PATCH + 1))
+            elif (( MINOR < 9 )); then
+              PATCH=0
+              MINOR=$((MINOR + 1))
+            else
+              PATCH=0
+              MINOR=0
+              MAJOR=$((MAJOR + 1))
+            fi
+
+            PATCH=$(printf "%02d" "$PATCH")
+            echo "next_title=release-v${MAJOR}.${MINOR}.${PATCH}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # -----------------------------------------------------------------------
+      # Step 4: Crea la draft PR
+      # Apre una PR in stato draft da release -> main con il titolo versionato.
+      # Non effettua push né modifica branch protetti — si limita a creare
+      # la PR tramite GitHub API (via gh CLI).
+      # Il fallback con || echo gestisce il caso edge in cui la PR venga
+      # creata manualmente tra lo Step 1 e questo step (race condition).
+      # -----------------------------------------------------------------------
+      - name: Create draft PR
+        if: steps.check_existing.outputs.skip == 'false' && steps.last_release.outputs.found == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --repo "${{ github.repository }}" \
+            --base main \
+            --head release \
+            --title "${{ steps.next_version.outputs.next_title }}" \
+            --body "Automated draft PR for next release from release → main" \
+            --draft \
+          || echo "::notice::Draft PR already exists or could not be created"
