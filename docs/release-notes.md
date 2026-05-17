@@ -1,18 +1,18 @@
- ### Release status
+ ```
+### Release status
 SCHEDULED
 
 ### Release Due Date
-2026-04-23
-tag: 4a443c0
+2026-05-17
+tag: _40_
 
 ### Release Content
 
-#### Breaking Changes
+#### Breaking Changes (area3)
 NONE
 
-#### Non-Breaking Changes
-##### area3
-###### prova54.sql
+#### Non-Breaking Changes (area3)
+None for the file `prova54.sql`
 
 ### Notes for Operation/Infrastrutture
 `NONE`
@@ -21,10 +21,11 @@ NONE
 `NONE`
 
 ### Rollback
-Revert to 3ef4db7
+Revert to _39_
 
 ### Release Technical Instructions
 `NONE`
 
 #### Manual Operations
 `NONE`
+```
