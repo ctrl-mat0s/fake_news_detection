@@ -2,17 +2,28 @@
 SCHEDULED
 
 ### Release Due Date
-2026-04-23
-tag: 4a443c0
+2026-05-21
+tag: _40_
 
 ### Release Content
 
-#### Breaking Changes
+#### promotion
+##### Breaking Changes
+NONE
+##### Non-Breaking Changes
 NONE
 
-#### Non-Breaking Changes
-##### area3
-###### prova54.sql
+#### mga
+##### Breaking Changes
+NONE
+##### Non-Breaking Changes
+NONE
+
+#### area3
+##### Breaking Changes
+NONE
+##### Non-Breaking Changes
+- Update prova54.sql
 
 ### Notes for Operation/Infrastrutture
 `NONE`
@@ -21,7 +32,7 @@ NONE
 `NONE`
 
 ### Rollback
-Revert to 3ef4db7
+Revert to _39_
 
 ### Release Technical Instructions
 `NONE`
